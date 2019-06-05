@@ -72,6 +72,26 @@
 
     </LinearLayout>
 
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <Button
+            android:id="@+id/btnStartMusic"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="0.3"
+            android:text="Start music" />
+
+        <TextView
+            android:id="@+id/txtSleepStage"
+            android:layout_width="match_parent"
+            android:layout_height="30dp"
+            android:text="Current sleep phase: Not measured" />
+
+
+    </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"

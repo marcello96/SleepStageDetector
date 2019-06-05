@@ -9,12 +9,14 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothProfile;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
 import com.sleepstage.detector.R;
 import com.sleepstage.detector.helpers.CustomBluetoothProfile;
+import com.sleepstage.detector.helpers.SleepPhases;
 import com.sleepstage.detector.model.HeartRateMeasurement;
 
 import net.danlew.android.joda.JodaTimeAndroid;
@@ -28,7 +30,36 @@ import java.util.TimerTask;
 import static com.sleepstage.detector.helpers.HeartRateUtil.extractHeartRate;
 import static com.sleepstage.detector.helpers.HeartRateUtil.getHealthRateWriteBytes;
 
+import com.spotify.android.appremote.api.ConnectionParams;
+import com.spotify.android.appremote.api.Connector;
+import com.spotify.android.appremote.api.SpotifyAppRemote;
+
 public class MainActivity extends Activity {
+
+    public enum SleepStagesPlaylists
+    {
+        WAKEFULNESS("spotify:user:spotify:playlist:37i9dQZF1DXauOWFg72pbl"),
+        AROUSAL("https://sit.domain.com:2019/"),
+        NREM1("https://cit.domain.com:8080/"),
+        NREM2("https://dev.domain.com:21323/"),
+        NREM3("https://dev.domain.com:21323/"),
+        REM("https://dev.domain.com:21323/");
+
+
+        private String url;
+
+        SleepStagesPlaylists(String envUrl) {
+            this.url = envUrl;
+        }
+
+        public String getUrl() {
+            return url;
+        }
+    }
+
+    private static final String CLIENT_ID = "38ee40066478433d8a23926c99173d62";
+    private static final String REDIRECT_URI = "http://example.com/callback";
+    private SpotifyAppRemote mSpotifyAppRemote;
 
     boolean isListeningHeartRate = false;
 
@@ -38,12 +69,16 @@ public class MainActivity extends Activity {
     BluetoothGatt bluetoothGatt;
     BluetoothDevice bluetoothDevice;
 
-    Button btnStartConnecting, btnGetHeartRate;
+    Button btnStartConnecting, btnGetHeartRate, btnStartMusic;
     EditText txtPhysicalAddress;
-    TextView txtState, txtByte;
+    TextView txtState, txtByte, txtSleepStage;
     private String mDeviceName;
     private String mDeviceAddress;
     private Timer hrScheduler;
+
+    public static final SleepPhases sleepPhase = new SleepPhases();
+    public static SleepPhases.SleepStages currentSleepStage = SleepPhases.SleepStages.WAKEFULNESS;
+    public static boolean isMusicOn = false;
 
     private static final int INTERVAL_SEC = 20;
 
@@ -82,14 +117,17 @@ public class MainActivity extends Activity {
     void initilaizeComponents() {
         btnStartConnecting = findViewById(R.id.btnStartConnecting);
         btnGetHeartRate = findViewById(R.id.btnGetHeartRate);
+        btnStartMusic = findViewById(R.id.btnStartMusic);
         txtPhysicalAddress = findViewById(R.id.txtPhysicalAddress);
         txtState = findViewById(R.id.txtState);
         txtByte = findViewById(R.id.txtByte);
+        txtSleepStage = findViewById(R.id.txtSleepStage);
     }
 
     void initializeEvents() {
         btnStartConnecting.setOnClickListener(v -> startConnecting());
         btnGetHeartRate.setOnClickListener(v -> handleHrBtnClick());
+        btnStartMusic.setOnClickListener(v -> handleStartMusicBtnClick());
     }
 
     void startConnecting() {
@@ -119,6 +157,36 @@ public class MainActivity extends Activity {
         isListeningHeartRate = true;
         startHeartRateScanning();
         btnGetHeartRate.setText(R.string.stop_measurement);
+    }
+
+    void handleStartMusicBtnClick() {
+        ConnectionParams connectionParams =
+                new ConnectionParams.Builder(CLIENT_ID)
+                        .setRedirectUri(REDIRECT_URI)
+                        .showAuthView(true)
+                        .build();
+
+        SpotifyAppRemote.connect(this, connectionParams,
+                new Connector.ConnectionListener() {
+
+                    @Override
+                    public void onConnected(SpotifyAppRemote spotifyAppRemote) {
+                        mSpotifyAppRemote = spotifyAppRemote;
+                        Log.d("MainActivity", "Connected! Yay!");
+                        isMusicOn = true;
+                    }
+
+                    @Override
+                    public void onFailure(Throwable throwable) {
+                        Log.e("MainActivity", throwable.getMessage(), throwable);
+
+                        // Something went wrong when attempting to connect! Handle errors here
+                    }
+                });
+    }
+
+    private void playlistPlay(String playlistLink) {
+        mSpotifyAppRemote.getPlayerApi().play(playlistLink);
     }
 
     void startHeartRateScanning() {
@@ -187,6 +255,18 @@ public class MainActivity extends Activity {
     void processHeartRateResponse(byte[] bytes) {
         // TODO heart rate
         HeartRateMeasurement heartRateData = new HeartRateMeasurement(extractHeartRate(bytes), LocalDateTime.now());
-        runOnUiThread(() -> txtByte.setText(String.format("%d bpm - %s", heartRateData.getValue())));
+        runOnUiThread(() -> txtByte.setText(String.format("%d bpm", heartRateData.getValue())));
+
+        // Sleep stage
+        if (isMusicOn) {
+            // Ustawic dzielnik
+            SleepPhases.SleepStages calculatedSleepStage = sleepPhase.calculateSleepPhase(heartRateData.getValue() / 60);
+            if (!currentSleepStage.equals(calculatedSleepStage)) {
+                currentSleepStage = calculatedSleepStage;
+                txtSleepStage.setText(String.format("Current sleep stage: %s", currentSleepStage.toString()));
+                SleepStagesPlaylists sitUrl = SleepStagesPlaylists.valueOf(currentSleepStage.toString());
+                playlistPlay(sitUrl.getUrl());
+            }
+        }
     }
 }
