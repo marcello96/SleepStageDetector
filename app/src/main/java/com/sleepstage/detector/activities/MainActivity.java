@@ -28,6 +28,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 import static com.sleepstage.detector.helpers.HeartRateUtil.extractHeartRate;
+import static com.sleepstage.detector.helpers.HeartRateUtil.getHealthRateWriteBytes;
 
 import com.spotify.android.appremote.api.ConnectionParams;
 import com.spotify.android.appremote.api.Connector;
@@ -151,9 +152,11 @@ public class MainActivity extends Activity {
         if (isListeningHeartRate) {
             isListeningHeartRate = false;
             stopHeartRateScanning();
+            btnGetHeartRate.setText(R.string.start_measurement);
         }
         isListeningHeartRate = true;
         startHeartRateScanning();
+        btnGetHeartRate.setText(R.string.stop_measurement);
     }
 
     void handleStartMusicBtnClick() {
@@ -203,7 +206,7 @@ public class MainActivity extends Activity {
         runOnUiThread(() -> txtByte.setText("..."));
         BluetoothGattCharacteristic bchar = bluetoothGatt.getService(CustomBluetoothProfile.HeartRate.service)
                 .getCharacteristic(CustomBluetoothProfile.HeartRate.controlCharacteristic);
-        bchar.setValue(new byte[]{21, 2, 1});
+        bchar.setValue(getHealthRateWriteBytes());
         bluetoothGatt.writeCharacteristic(bchar);
     }
 
@@ -214,7 +217,6 @@ public class MainActivity extends Activity {
         BluetoothGattDescriptor descriptor = bchar.getDescriptor(CustomBluetoothProfile.HeartRate.descriptor);
         descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
         bluetoothGatt.writeDescriptor(descriptor);
-        isListeningHeartRate = true;
     }
 
     final BluetoothGattCallback bluetoothGattCallback = new BluetoothGattCallback() {
@@ -233,7 +235,7 @@ public class MainActivity extends Activity {
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             super.onServicesDiscovered(gatt, status);
-            //listenHeartRate();
+            listenHeartRate();
         }
 
         @Override

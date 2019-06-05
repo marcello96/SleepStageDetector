@@ -1,13 +1,12 @@
 package com.sleepstage.detector.activities;
 
+import android.Manifest;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothManager;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
 import android.bluetooth.le.ScanResult;
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
@@ -24,10 +23,10 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.sleepstage.detector.R;
+
 import java.util.ArrayList;
 import java.util.List;
-
-import com.sleepstage.detector.R;
 
 /**
  * Activity for scanning and displaying available Bluetooth LE devices.
@@ -35,9 +34,11 @@ import com.sleepstage.detector.R;
 public class DeviceScanActivity extends AppCompatActivity {
     private LeDeviceListAdapter mLeDeviceListAdapter;
     private BluetoothAdapter mBluetoothAdapter;
+    private BluetoothLeScanner mBluetoothLeScanner;
     private boolean mScanning;
     private Handler mHandler;
 
+    private static final int REQUEST_BT_PERMISSIONS = 0;
     private static final int REQUEST_ENABLE_BT = 1;
     // Stops scanning after 10 seconds.
     private static final long SCAN_PERIOD = 10000;
@@ -52,6 +53,7 @@ public class DeviceScanActivity extends AppCompatActivity {
 
 
         mHandler = new Handler();
+        checkBtPermissions();
 
         // Use this check to determine whether BLE is supported on the device.  Then you can
         // selectively disable BLE-related features.
@@ -62,9 +64,8 @@ public class DeviceScanActivity extends AppCompatActivity {
 
         // Initializes a Bluetooth adapter.  For API level 18 and above, get a reference to
         // BluetoothAdapter through BluetoothManager.
-        final BluetoothManager bluetoothManager =
-                (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
-        mBluetoothAdapter = bluetoothManager.getAdapter();
+        mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        mBluetoothLeScanner = mBluetoothAdapter.getBluetoothLeScanner();
 
         // Checks if Bluetooth is supported on the device.
         if (mBluetoothAdapter == null) {
@@ -154,7 +155,15 @@ public class DeviceScanActivity extends AppCompatActivity {
         mLeDeviceListAdapter.clear();
     }
 
-
+    public void checkBtPermissions() {
+        this.requestPermissions(
+            new String[] {
+                Manifest.permission.BLUETOOTH,
+                Manifest.permission.BLUETOOTH_ADMIN,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            },
+            REQUEST_BT_PERMISSIONS);
+    }
 
     private void scanLeDevice(final boolean enable) {
         final BluetoothLeScanner bluetoothLeScanner = mBluetoothAdapter.getBluetoothLeScanner();
