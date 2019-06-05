@@ -9,7 +9,6 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothProfile;
 import android.os.Bundle;
-import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -23,12 +22,14 @@ import net.danlew.android.joda.JodaTimeAndroid;
 import org.joda.time.LocalDateTime;
 
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import static com.sleepstage.detector.helpers.HeartRateUtil.extractHeartRate;
 
 public class MainActivity extends Activity {
 
-    Boolean isListeningHeartRate = false;
+    boolean isListeningHeartRate = false;
 
     public static final String EXTRAS_DEVICE_NAME = "DEVICE_NAME";
     public static final String EXTRAS_DEVICE_ADDRESS = "DEVICE_ADDRESS";
@@ -41,8 +42,9 @@ public class MainActivity extends Activity {
     TextView txtState, txtByte;
     private String mDeviceName;
     private String mDeviceAddress;
+    private Timer hrScheduler;
 
-    private static final int INTERVAL_SEC = 60;
+    private static final int INTERVAL_SEC = 20;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,6 +75,7 @@ public class MainActivity extends Activity {
 
     void initializeObjects() {
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        hrScheduler = new Timer();
     }
 
     void initilaizeComponents() {
@@ -85,7 +88,7 @@ public class MainActivity extends Activity {
 
     void initializeEvents() {
         btnStartConnecting.setOnClickListener(v -> startConnecting());
-        btnGetHeartRate.setOnClickListener(v -> startScanHeartRate());
+        btnGetHeartRate.setOnClickListener(v -> handleHrBtnClick());
     }
 
     void startConnecting() {
@@ -106,7 +109,29 @@ public class MainActivity extends Activity {
         runOnUiThread(() -> txtState.setText("Disconnected"));
     }
 
-    void startScanHeartRate() {
+    void handleHrBtnClick() {
+        if (isListeningHeartRate) {
+            isListeningHeartRate = false;
+            stopHeartRateScanning();
+        }
+        isListeningHeartRate = true;
+        startHeartRateScanning();
+    }
+
+    void startHeartRateScanning() {
+        hrScheduler.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                scanHeartRate();
+            }
+        }, 0, 1000 * INTERVAL_SEC);
+    }
+
+    void stopHeartRateScanning() {
+        hrScheduler.cancel();
+    }
+
+    void scanHeartRate() {
         runOnUiThread(() -> txtByte.setText("..."));
         BluetoothGattCharacteristic bchar = bluetoothGatt.getService(CustomBluetoothProfile.HeartRate.service)
                 .getCharacteristic(CustomBluetoothProfile.HeartRate.controlCharacteristic);
@@ -140,7 +165,7 @@ public class MainActivity extends Activity {
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             super.onServicesDiscovered(gatt, status);
-            listenHeartRate();
+            //listenHeartRate();
         }
 
         @Override
@@ -160,6 +185,6 @@ public class MainActivity extends Activity {
     void processHeartRateResponse(byte[] bytes) {
         // TODO heart rate
         HeartRateMeasurement heartRateData = new HeartRateMeasurement(extractHeartRate(bytes), LocalDateTime.now());
-        runOnUiThread(() -> txtByte.setText(heartRateData.getValue()));
+        runOnUiThread(() -> txtByte.setText(String.format("%d bpm", heartRateData.getValue())));
     }
 }
