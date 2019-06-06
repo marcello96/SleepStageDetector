@@ -102,13 +102,13 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Byte Received:"
+            android:text="Heart rate"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/txtByte"
             android:layout_width="match_parent"
-            android:layout_height="100dp"
+            android:layout_height="332dp"
             android:scrollHorizontally="false" />
     </LinearLayout>
 

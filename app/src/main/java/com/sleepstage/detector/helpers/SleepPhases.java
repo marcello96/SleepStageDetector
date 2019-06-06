@@ -5,7 +5,7 @@ import java.util.List;
 public class SleepPhases {
 
     public enum SleepStages {
-        WAKEFULNESS, AROUSAL, NREM1, NREM2, NREM3, REM;
+        UNDEFINED, WAKEFULNESS, AROUSAL, NREM1, NREM2, NREM3, REM;
     }
 
     final int WAKEFULNESS_BPM = 880;

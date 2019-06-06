@@ -39,11 +39,11 @@ public class MainActivity extends Activity {
     public enum SleepStagesPlaylists
     {
         WAKEFULNESS("spotify:user:spotify:playlist:37i9dQZF1DXauOWFg72pbl"),
-        AROUSAL("https://sit.domain.com:2019/"),
-        NREM1("https://cit.domain.com:8080/"),
-        NREM2("https://dev.domain.com:21323/"),
-        NREM3("https://dev.domain.com:21323/"),
-        REM("https://dev.domain.com:21323/");
+        AROUSAL("spotify:album:5z18I6RGoc5WJk6E9y55l0"),
+        NREM1("spotify:album:6twkMgxOvXOxQsu9kBBCkW"),
+        NREM2("spotify:album:1BIjAmzQzs7Tw3JwocYxQl"),
+        NREM3("spotify:album:7grtCQtTTieR4VZQcYT4cB"),
+        REM("spotify:album:3YoAppcd7ZVCGcp6sAsSas");
 
 
         private String url;
@@ -77,10 +77,10 @@ public class MainActivity extends Activity {
     private Timer hrScheduler;
 
     public static final SleepPhases sleepPhase = new SleepPhases();
-    public static SleepPhases.SleepStages currentSleepStage = SleepPhases.SleepStages.WAKEFULNESS;
+    public static SleepPhases.SleepStages currentSleepStage = SleepPhases.SleepStages.UNDEFINED;
     public static boolean isMusicOn = false;
 
-    private static final int INTERVAL_SEC = 20;
+    private static final int INTERVAL_SEC = 15;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -99,7 +99,9 @@ public class MainActivity extends Activity {
 
         mDeviceName = getIntent().getStringExtra(EXTRAS_DEVICE_NAME);
         mDeviceAddress = getIntent().getStringExtra(EXTRAS_DEVICE_ADDRESS);
-        txtPhysicalAddress.setText(mDeviceAddress);
+        //txtPhysicalAddress.setText(mDeviceAddress);
+        txtPhysicalAddress.setText("E2:BA:51:35:20:39");
+
 
         Set<BluetoothDevice> boundedDevice = bluetoothAdapter.getBondedDevices();
         for (BluetoothDevice bd : boundedDevice) {
@@ -173,6 +175,7 @@ public class MainActivity extends Activity {
                     public void onConnected(SpotifyAppRemote spotifyAppRemote) {
                         mSpotifyAppRemote = spotifyAppRemote;
                         Log.d("MainActivity", "Connected! Yay!");
+                        btnStartMusic.setText("Music Started");
                         isMusicOn = true;
                     }
 
@@ -203,7 +206,7 @@ public class MainActivity extends Activity {
     }
 
     void scanHeartRate() {
-        runOnUiThread(() -> txtByte.setText("..."));
+        //runOnUiThread(() -> txtByte.append("..."));
         BluetoothGattCharacteristic bchar = bluetoothGatt.getService(CustomBluetoothProfile.HeartRate.service)
                 .getCharacteristic(CustomBluetoothProfile.HeartRate.controlCharacteristic);
         bchar.setValue(getHealthRateWriteBytes());
@@ -255,12 +258,15 @@ public class MainActivity extends Activity {
     void processHeartRateResponse(byte[] bytes) {
         // TODO heart rate
         HeartRateMeasurement heartRateData = new HeartRateMeasurement(extractHeartRate(bytes), LocalDateTime.now());
-        runOnUiThread(() -> txtByte.setText(String.format("%d bpm", heartRateData.getValue())));
+        runOnUiThread(() -> txtByte.append(String.format("%d bpm\n", heartRateData.getValue())));
 
         // Sleep stage
         if (isMusicOn) {
             // Ustawic dzielnik
-            SleepPhases.SleepStages calculatedSleepStage = sleepPhase.calculateSleepPhase(heartRateData.getValue() / 60);
+            float RRI = 60.0f/heartRateData.getValue()*1000.0f;
+            Log.d("MainActivity", "RRI: " + RRI);
+            SleepPhases.SleepStages calculatedSleepStage = sleepPhase.calculateSleepPhase(RRI);
+
             if (!currentSleepStage.equals(calculatedSleepStage)) {
                 currentSleepStage = calculatedSleepStage;
                 txtSleepStage.setText(String.format("Current sleep stage: %s", currentSleepStage.toString()));
